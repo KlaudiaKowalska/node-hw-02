@@ -77,9 +77,8 @@ const updateContact = async (contactId, body) => {
       return null; // Kontakt nie znaleziony
     }
 
-    // Aktualizacja kontaktu
     contacts[index] = { ...contacts[index], ...body };
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2)); // Zapisanie zaktualizowanego pliku
+    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
     return contacts[index];
   } catch (error) {
     console.error("Błąd podczas aktualizacji kontaktu:", error);
