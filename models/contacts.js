@@ -1,4 +1,3 @@
-// const fs = require('fs/promises')
 const fs = require("fs").promises;
 const path = require("path");
 const Joi = require("joi");
@@ -32,7 +31,7 @@ const getContactById = async (contactId) => {
     return contact || null;
   } catch (error) {
     console.error("Błąd podczas wyszukiwania kontaktu:", error);
-    throw error; // Rzucenie błędu dalej, aby mógł być obsłużony przez middleware
+    throw error;
   }
 };
 
@@ -42,11 +41,11 @@ const removeContact = async (contactId) => {
     const index = contacts.findIndex((contact) => contact.id === contactId);
 
     if (index === -1) {
-      return null; // Kontakt nie znaleziony
+      return null;
     }
 
-    contacts.splice(index, 1); // Usuwanie kontaktu
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2)); // Zapisanie zaktualizowanego pliku
+    contacts.splice(index, 1);
+    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
     return { message: "contact deleted" };
   } catch (error) {
     console.error("Błąd podczas usuwania kontaktu:", error);
@@ -56,11 +55,11 @@ const removeContact = async (contactId) => {
 
 const addContact = async (body) => {
   try {
-    const { nanoid } = await import("nanoid"); // Import nanoid wewnątrz funkcji
+    const { nanoid } = await import("nanoid");
     const contacts = await listContacts();
-    const newContact = { id: nanoid(), ...body }; // Dodanie unikalnego ID i rozpakowanie pól body
+    const newContact = { id: nanoid(), ...body };
     contacts.push(newContact);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2)); // Zapisanie zaktualizowanego pliku
+    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
     return newContact;
   } catch (error) {
     console.error("Błąd podczas dodawania kontaktu:", error);
@@ -74,7 +73,7 @@ const updateContact = async (contactId, body) => {
     const index = contacts.findIndex((contact) => contact.id === contactId);
 
     if (index === -1) {
-      return null; // Kontakt nie znaleziony
+      return null;
     }
 
     contacts[index] = { ...contacts[index], ...body };

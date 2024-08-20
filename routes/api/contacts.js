@@ -33,7 +33,7 @@ router.get("/:contactId", async (req, res, next) => {
     }
   } catch (error) {
     console.error("Błąd podczas przetwarzania żądania GET /:contactId:", error);
-    next(error); // Przekazanie błędu do middleware błędów
+    next(error);
   }
 });
 
@@ -67,7 +67,6 @@ router.delete("/:contactId", async (req, res, next) => {
 });
 
 router.put("/:contactId", async (req, res, next) => {
-  // Walidacja częściowa - jeśli body jest puste, zwróć błąd
   const { error } = contactSchema.validate(req.body, { allowUnknown: true });
 
   if (error) {
