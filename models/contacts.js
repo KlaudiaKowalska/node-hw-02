@@ -1,21 +1,47 @@
-const fs = require("fs").promises;
-const path = require("path");
+const mongoose = require("mongoose");
 const Joi = require("joi");
 
+// Walidacja Joi dla kontaktu
 const contactSchema = Joi.object({
   name: Joi.string().min(3).max(30).required(),
   email: Joi.string().email().required(),
   phone: Joi.string()
     .pattern(/^\(\d{3}\) \d{3}-\d{4}$/)
     .required(),
+  favorite: Joi.boolean(), // Dodano pole `favorite` do walidacji
 });
 
-const contactsPath = path.join(__dirname, "contacts.json");
+// Definiowanie schematu Mongoose dla kontaktu
+const mongooseSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    minlength: 3,
+    maxlength: 30,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  phone: {
+    type: String,
+    required: true,
+    match: /^\(\d{3}\) \d{3}-\d{4}$/,
+  },
+  favorite: {
+    type: Boolean,
+    default: false, // Domyślna wartość `favorite` to false
+  },
+});
 
+// Tworzenie modelu Contact
+const Contact = mongoose.model("Contact", mongooseSchema);
+
+// Funkcje do zarządzania kontaktami
 const listContacts = async () => {
   try {
-    const data = await fs.readFile(contactsPath, "utf8");
-    const contacts = JSON.parse(data);
+    const contacts = await Contact.find();
     return contacts;
   } catch (error) {
     console.error("Błąd podczas odczytu kontaktów:", error);
@@ -25,9 +51,7 @@ const listContacts = async () => {
 
 const getContactById = async (contactId) => {
   try {
-    const contacts = await listContacts();
-    console.log("Szukane ID:", contactId);
-    const contact = contacts.find((contact) => contact.id === contactId);
+    const contact = await Contact.findById(contactId);
     return contact || null;
   } catch (error) {
     console.error("Błąd podczas wyszukiwania kontaktu:", error);
@@ -37,16 +61,8 @@ const getContactById = async (contactId) => {
 
 const removeContact = async (contactId) => {
   try {
-    const contacts = await listContacts();
-    const index = contacts.findIndex((contact) => contact.id === contactId);
-
-    if (index === -1) {
-      return null;
-    }
-
-    contacts.splice(index, 1);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return { message: "contact deleted" };
+    const result = await Contact.findByIdAndDelete(contactId);
+    return result ? { message: "contact deleted" } : null;
   } catch (error) {
     console.error("Błąd podczas usuwania kontaktu:", error);
     throw error;
@@ -55,11 +71,8 @@ const removeContact = async (contactId) => {
 
 const addContact = async (body) => {
   try {
-    const { nanoid } = await import("nanoid");
-    const contacts = await listContacts();
-    const newContact = { id: nanoid(), ...body };
-    contacts.push(newContact);
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
+    const newContact = new Contact(body);
+    await newContact.save();
     return newContact;
   } catch (error) {
     console.error("Błąd podczas dodawania kontaktu:", error);
@@ -69,18 +82,36 @@ const addContact = async (body) => {
 
 const updateContact = async (contactId, body) => {
   try {
-    const contacts = await listContacts();
-    const index = contacts.findIndex((contact) => contact.id === contactId);
-
-    if (index === -1) {
-      return null;
-    }
-
-    contacts[index] = { ...contacts[index], ...body };
-    await fs.writeFile(contactsPath, JSON.stringify(contacts, null, 2));
-    return contacts[index];
+    const updatedContact = await Contact.findByIdAndUpdate(contactId, body, {
+      new: true,
+    });
+    return updatedContact || null;
   } catch (error) {
     console.error("Błąd podczas aktualizacji kontaktu:", error);
+    throw error;
+  }
+};
+
+const updateStatusContact = async (contactId, { favorite }) => {
+  try {
+    const updatedContact = await Contact.findByIdAndUpdate(
+      contactId,
+      { favorite },
+      { new: true }
+    );
+    return updatedContact || null;
+  } catch (error) {
+    console.error("Błąd podczas aktualizacji statusu kontaktu:", error);
+    throw error;
+  }
+};
+
+const listFavoriteContacts = async () => {
+  try {
+    const favoriteContacts = await Contact.find({ favorite: true });
+    return favoriteContacts;
+  } catch (error) {
+    console.error("Błąd podczas odczytu ulubionych kontaktów:", error);
     throw error;
   }
 };
@@ -91,5 +122,7 @@ module.exports = {
   removeContact,
   addContact,
   updateContact,
+  updateStatusContact,
+  listFavoriteContacts,
   contactSchema,
 };

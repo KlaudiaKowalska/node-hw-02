@@ -5,6 +5,8 @@ const {
   addContact,
   removeContact,
   updateContact,
+  updateStatusContact,
+  listFavoriteContacts,
   contactSchema,
 } = require("../../models/contacts");
 
@@ -19,11 +21,18 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/favorites", async (req, res, next) => {
+  try {
+    const favoriteContacts = await listFavoriteContacts();
+    res.status(200).json(favoriteContacts);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get("/:contactId", async (req, res, next) => {
   try {
     const { contactId } = req.params;
-    console.log("Otrzymane ID z parametru:", contactId);
-
     const contact = await getContactById(contactId);
 
     if (contact) {
@@ -32,7 +41,6 @@ router.get("/:contactId", async (req, res, next) => {
       res.status(404).json({ message: "Not found" });
     }
   } catch (error) {
-    console.error("Błąd podczas przetwarzania żądania GET /:contactId:", error);
     next(error);
   }
 });
@@ -77,6 +85,27 @@ router.put("/:contactId", async (req, res, next) => {
     const updatedContact = await updateContact(req.params.contactId, req.body);
     if (updatedContact) {
       res.json(updatedContact);
+    } else {
+      res.status(404).json({ message: "Not found" });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/:contactId/favorite", async (req, res, next) => {
+  const { contactId } = req.params;
+  const { favorite } = req.body;
+
+  if (favorite === undefined) {
+    return res.status(400).json({ message: "missing field favorite" });
+  }
+
+  try {
+    const updatedContact = await updateStatusContact(contactId, { favorite });
+
+    if (updatedContact) {
+      res.status(200).json(updatedContact);
     } else {
       res.status(404).json({ message: "Not found" });
     }
