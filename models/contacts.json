@@ -58,5 +58,11 @@
     "name": "Jan Nowak",
     "email": "jan.nowak@example.com",
     "phone": "(987) 654-3210"
+  },
+  {
+    "id": "KijvL6G65Pzcrss6V9izX",
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "(123) 456-7890"
   }
 ]
