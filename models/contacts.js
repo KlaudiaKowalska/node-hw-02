@@ -33,6 +33,11 @@ const mongooseSchema = new mongoose.Schema({
     type: Boolean,
     default: false, // Domyślna wartość `favorite` to false
   },
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Odniesienie do kolekcji użytkowników
+    required: true,
+  },
 });
 
 // Tworzenie modelu Contact

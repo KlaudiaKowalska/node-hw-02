@@ -7,10 +7,13 @@ const {
   updateContact,
   updateStatusContact,
   listFavoriteContacts,
-  contactSchema,
 } = require("../../models/contacts");
+const authMiddleware = require("../../middleware/authMiddleware");
 
 const router = express.Router();
+
+// Dodaj authMiddleware do wszystkich tras, które powinny być chronione
+router.use(authMiddleware);
 
 router.get("/", async (req, res, next) => {
   try {
@@ -46,12 +49,6 @@ router.get("/:contactId", async (req, res, next) => {
 });
 
 router.post("/", async (req, res, next) => {
-  const { error } = contactSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({ message: error.details[0].message });
-  }
-
   try {
     const newContact = await addContact(req.body);
     res.status(201).json(newContact);
@@ -75,12 +72,6 @@ router.delete("/:contactId", async (req, res, next) => {
 });
 
 router.put("/:contactId", async (req, res, next) => {
-  const { error } = contactSchema.validate(req.body, { allowUnknown: true });
-
-  if (error) {
-    return res.status(400).json({ message: error.details[0].message });
-  }
-
   try {
     const updatedContact = await updateContact(req.params.contactId, req.body);
     if (updatedContact) {
