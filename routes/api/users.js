@@ -4,6 +4,11 @@ const jwt = require("jsonwebtoken");
 const Joi = require("joi");
 const User = require("../../models/user");
 const authMiddleware = require("../../middleware/authMiddleware");
+const gravatar = require("gravatar");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs/promises");
+const sharp = require("sharp");
 
 const router = express.Router();
 
@@ -12,6 +17,55 @@ const signupSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
 });
+
+// Schemat walidacji danych logowania
+const loginSchema = Joi.object({
+  email: Joi.string().email().required(),
+  password: Joi.string().min(6).required(),
+});
+
+// Konfiguracja Multer do przesyłania avatarów
+const tmpDir = path.join(__dirname, "../../tmp");
+const avatarsDir = path.join(__dirname, "../../public/avatars");
+
+const storage = multer.diskStorage({
+  destination: tmpDir,
+  filename: (req, file, cb) => {
+    cb(null, `${req.user._id}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
+
+// Funkcja do przetwarzania i zapisywania avatarów
+const processAvatar = async (req) => {
+  const { path: tempPath, originalname } = req.file;
+  const extension = path.extname(originalname);
+  const newFileName = `${req.user._id}${extension}`;
+  const newFilePath = path.join(avatarsDir, newFileName);
+
+  console.log("Using sharp version:", sharp.version);
+  console.log("Temp file path:", tempPath);
+  console.log("New file path:", newFilePath);
+
+  try {
+    await sharp(tempPath).resize(250, 250).toFile(newFilePath);
+
+    // Sprawdź, czy plik tymczasowy istnieje przed próbą usunięcia
+    try {
+      await fs.access(tempPath);
+      await fs.unlink(tempPath);
+    } catch (unlinkError) {
+      console.warn("Could not delete temp file:", unlinkError.message);
+    }
+
+    const avatarURL = `/avatars/${newFileName}`;
+    return avatarURL;
+  } catch (error) {
+    console.error("Error processing image:", error);
+    throw error;
+  }
+};
 
 // Rejestracja użytkownika
 router.post("/signup", async (req, res, next) => {
@@ -30,10 +84,13 @@ router.post("/signup", async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const avatarURL = gravatar.url(email, { s: "200", r: "pg", d: "mm" });
+
     const newUser = new User({
       email,
       password: hashedPassword,
       subscription: "starter",
+      avatarURL,
     });
 
     await newUser.save();
@@ -42,17 +99,12 @@ router.post("/signup", async (req, res, next) => {
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        avatarURL: newUser.avatarURL,
       },
     });
   } catch (error) {
     next(error);
   }
-});
-
-// Schemat walidacji danych logowania
-const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
 });
 
 // Logowanie użytkownika
@@ -87,6 +139,7 @@ router.post("/login", async (req, res, next) => {
       user: {
         email: user.email,
         subscription: user.subscription,
+        avatarURL: user.avatarURL,
       },
     });
   } catch (error) {
@@ -94,6 +147,7 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
+// Wylogowanie użytkownika
 router.get("/logout", authMiddleware, async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
@@ -110,6 +164,7 @@ router.get("/logout", authMiddleware, async (req, res, next) => {
   }
 });
 
+// Pobranie danych aktualnego użytkownika
 router.get("/current", authMiddleware, async (req, res, next) => {
   try {
     const user = req.user;
@@ -120,10 +175,34 @@ router.get("/current", authMiddleware, async (req, res, next) => {
     res.status(200).json({
       email: user.email,
       subscription: user.subscription,
+      avatarURL: user.avatarURL,
     });
   } catch (error) {
     next(error);
   }
 });
+
+// Upload nowego avatara
+router.patch(
+  "/avatars",
+  authMiddleware,
+  upload.single("avatar"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "Avatar file is required" });
+      }
+
+      const avatarURL = await processAvatar(req);
+
+      req.user.avatarURL = avatarURL;
+      await req.user.save();
+
+      res.status(200).json({ avatarURL });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 module.exports = router;
